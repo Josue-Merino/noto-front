@@ -4,7 +4,10 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const srcDir = path.resolve(__dirname, '../node_modules/@ffmpeg/core/dist/umd')
+// Build ESM: el worker de @ffmpeg/ffmpeg corre como módulo en `vite dev`, donde no existe
+// importScripts y el núcleo se carga con import(), que necesita el `export default` del ESM.
+// En el build de producción (worker clásico) importScripts falla con ESM y cae al mismo import().
+const srcDir = path.resolve(__dirname, '../node_modules/@ffmpeg/core/dist/esm')
 const destDir = path.resolve(__dirname, '../public/ffmpeg')
 
 if (!fs.existsSync(srcDir)) {
