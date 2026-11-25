@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+@layer base {
+  @font-face {
+    font-family: 'Inter';
+    src: url('/assets/fonts/Inter.woff2') format('woff2');
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+  }
+}
+
+
+
+@theme {
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  /* Fondos y superficies */
+  --color-bg: #11100e;
+  --color-bg-darker: #0f0e0c;
+
+  --color-surface: #191816;
+  --color-surface-hover: #24211d;
+  --color-surface-active: #2c2924;
+
+  /* Bordes */
+  --color-border: #34302a;
+  --color-border-light: #443f37;
+
+  /* Tipografía */
+  --color-text-h: #f0ece5;
+  --color-text: #aaa49b;
+  --color-text-muted: #736e65;
+  --color-text-on-accent: #11100e;
+
+  /* Acento ámbar */
+  --color-accent: #f2b84b;
+  --color-accent-hover: #f7c766;
+  --color-accent-active: #de9e32;
+  --color-accent-muted: rgb(242 184 75 / 10%);
+  --color-accent-border: rgb(242 184 75 / 35%);
+
+  /* Estados semánticos */
+  --color-success: #86d9a8;
+  --color-success-bg: rgb(134 217 168 / 12%);
+
+  --color-warning: #f2b84b;
+  --color-warning-bg: rgb(242 184 75 / 12%);
+
+  --color-error: #f47c7c;
+  --color-error-bg: rgb(244 124 124 / 12%);
+
+  --color-secondary: #8ec5ff;
+}
+
+
+
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
