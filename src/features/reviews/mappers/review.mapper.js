@@ -2,6 +2,26 @@ import { getOutputTypeLabel } from '@/features/home/constants/outputTypes'
 
 const VIDEO_EXTENSIONS = ['mp4', 'mov', 'm4v', 'mkv']
 
+/** Estados en los que el trabajo todavía se está procesando en el backend. */
+export const ACTIVE_STATUSES = ['queued', 'preparing', 'processing']
+
+/**
+ * @param {string | undefined} status
+ * @returns {boolean}
+ */
+export const isActiveStatus = (status) => ACTIVE_STATUSES.includes(status)
+
+/**
+ * Ruta a la que lleva un repaso: el apunte si ya terminó; la pantalla de progreso/resultado si no.
+ * @param {{ id: string, status?: string, content?: object | null }} review
+ */
+export function reviewPath(review) {
+  const hasContent = review.content && Object.values(review.content).some(Boolean)
+  return review.status && review.status !== 'completed' && !hasContent
+    ? `/generation/${review.id}`
+    : `/reviews/${review.id}`
+}
+
 /**
  * @param {string | null | undefined} name
  * @returns {string} Extensión en minúsculas sin el punto ('' si no tiene).
@@ -52,8 +72,8 @@ function buildDescription(content) {
 }
 
 /**
- * Convierte el material de estudio del backend (POST /generation/create) al modelo de vista
- * que usan ReviewCard, HistoryPage, SidebarRecents y ReviewDetailPage.
+ * Convierte un trabajo de generación del backend (GET /generation/:id) al modelo de vista
+ * que usan ReviewCard, HistoryPage, SidebarRecents, GenerationResultPage y ReviewDetailPage.
  * @param {object} dto - `data` de la respuesta del backend.
  * @returns {object}
  */
@@ -79,7 +99,18 @@ export function toReviewViewModel(dto) {
     duration: formatDuration(source.durationSec),
     dateText: formatDateText(dto.createdAt),
     date: dto.createdAt,
-    buttonText: 'Ver repaso',
+    buttonText: dto.status === 'completed' || !dto.status ? 'Ver repaso' : 'Ver estado',
     content: dto.content,
+    // Estado del trabajo en el backend
+    status: dto.status ?? 'completed',
+    materials: dto.materials ?? [],
+    pendingMaterials: dto.pendingMaterials ?? [],
+    error: dto.error ?? null,
+    audio: dto.audio ?? { available: false },
+    source,
+    durationSec: source.durationSec ?? null,
+    startedAt: dto.startedAt ?? null,
+    updatedAt: dto.updatedAt ?? null,
+    finishedAt: dto.finishedAt ?? null,
   }
 }

@@ -3,6 +3,8 @@ import { Sidebar } from '@/components/layout/Sidebar'
 import { MobileHeader } from '@/components/layout/MobileHeader'
 import { Drawer } from '@/components/ui/Drawer'
 import { useUIStore } from '@/store/ui.store'
+import { ToastViewport } from '@/components/ui/Toast'
+import { useJobPolling } from '@/features/home/hooks/useJobPolling'
 
 /**
  * Layout principal para la aplicación autenticada.
@@ -13,6 +15,9 @@ export function AppLayout() {
   const toggleSidebar = useUIStore((s) => s.toggleSidebar)
   const mobileSidebarOpen = useUIStore((s) => s.mobileSidebarOpen)
   const closeMobileSidebar = useUIStore((s) => s.closeMobileSidebar)
+
+  // Trabajos de generación: carga la lista y sigue los que están en curso (avisa al terminar)
+  useJobPolling()
 
   return (
     <div className="min-h-dvh w-full bg-bg text-text flex flex-col md:flex-row relative">
@@ -59,6 +64,8 @@ export function AppLayout() {
           <Outlet />
         </div>
       </main>
+
+      <ToastViewport />
     </div>
   )
 }

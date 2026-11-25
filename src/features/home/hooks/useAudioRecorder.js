@@ -34,7 +34,7 @@ function getBestSupportedMimeType() {
  * La grabación ya sale comprimida y ligera directamente del navegador.
  *
  * @param {object} options
- * @param {(file: File | null) => void} options.onAudioRecorded - Callback cuando se finaliza la grabación.
+ * @param {(file: File | null, durationSec?: number) => void} options.onAudioRecorded - Callback cuando se finaliza la grabación (con su duración en segundos).
  */
 export function useAudioRecorder({ onAudioRecorded }) {
   const [isRecording, setIsRecording] = useState(false)
@@ -43,6 +43,8 @@ export function useAudioRecorder({ onAudioRecorded }) {
   const [recordingSeconds, setRecordingSeconds] = useState(0)
   const [recordedFile, setRecordedFile] = useState(null)
   const [audioError, setAudioError] = useState(null)
+  // El navegador negó el micrófono: el panel muestra la tarjeta de permisos (pantalla Home 15)
+  const [permissionDenied, setPermissionDenied] = useState(false)
   const [deviceLabel, setDeviceLabel] = useState(DEFAULT_DEVICE_LABEL)
   const [waveBars, setWaveBars] = useState(() =>
     [25, 40, 65, 30, 85, 55, 75, 45, 90, 60, 80, 50, 95, 70, 85, 40, 65, 50, 75, 35, 60, 45, 80, 30, 50, 35, 45, 20]
@@ -54,6 +56,12 @@ export function useAudioRecorder({ onAudioRecorded }) {
   const waveAnimRef = useRef(null)
   const chunksRef = useRef([])
   const activeExtRef = useRef('webm')
+  // Duración vigente para entregarla junto al archivo (los callbacks de MediaRecorder la verían vieja)
+  const secondsRef = useRef(0)
+
+  useEffect(() => {
+    secondsRef.current = recordingSeconds
+  }, [recordingSeconds])
 
   // Detener y procesar audio
   const stopRecording = useCallback(() => {
@@ -72,7 +80,7 @@ export function useAudioRecorder({ onAudioRecorded }) {
           type: 'audio/webm',
         })
         setRecordedFile(file)
-        if (onAudioRecorded) onAudioRecorded(file)
+        if (onAudioRecorded) onAudioRecorded(file, secondsRef.current)
         setIsRecording(false)
         setIsPaused(false)
         setIsTranscribing(false)
@@ -132,14 +140,14 @@ export function useAudioRecorder({ onAudioRecorded }) {
     }
   }, [])
 
-  // Cronómetro con límite estricto de 60 minutos
+  // Cronómetro con límite estricto de 2 horas
   useEffect(() => {
     if (isRecording && !isPaused) {
       timerRef.current = setInterval(() => {
         setRecordingSeconds((prev) => {
           if (prev >= MAX_DURATION_SECONDS) {
             stopRecording()
-            setAudioError('La grabación se detuvo al alcanzar el límite máximo de 1 hora.')
+            setAudioError('La grabación se detuvo al alcanzar el límite máximo de 2 horas.')
             return prev
           }
           return prev + 1
@@ -171,6 +179,7 @@ export function useAudioRecorder({ onAudioRecorded }) {
 
   const startRecording = useCallback(async () => {
     setAudioError(null)
+    setPermissionDenied(false)
     setRecordedFile(null)
     chunksRef.current = []
 
@@ -231,7 +240,7 @@ export function useAudioRecorder({ onAudioRecorded }) {
         })
 
         setRecordedFile(file)
-        if (onAudioRecorded) onAudioRecorded(file)
+        if (onAudioRecorded) onAudioRecorded(file, secondsRef.current)
 
         if (streamRef.current) {
           streamRef.current.getTracks().forEach((t) => t.stop())
@@ -249,7 +258,7 @@ export function useAudioRecorder({ onAudioRecorded }) {
       setIsPaused(false)
     } catch (err) {
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        setAudioError('Permiso de micrófono denegado. Habilita el acceso en tu navegador.')
+        setPermissionDenied(true)
       } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
         setIsRecording(true)
         setIsPaused(false)
@@ -261,6 +270,8 @@ export function useAudioRecorder({ onAudioRecorded }) {
       }
     }
   }, [onAudioRecorded])
+
+  const dismissPermissionError = useCallback(() => setPermissionDenied(false), [])
 
   const resetRecording = useCallback(() => {
     cancelRecording()
@@ -278,6 +289,8 @@ export function useAudioRecorder({ onAudioRecorded }) {
     formattedTime,
     recordedFile,
     audioError,
+    permissionDenied,
+    dismissPermissionError,
     deviceLabel,
     waveBars,
     startRecording,

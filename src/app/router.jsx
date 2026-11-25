@@ -12,6 +12,7 @@ import { ResetPasswordPage } from '@/features/auth/pages/ResetPasswordPage'
 import { HomePage } from '@/features/home/pages/HomePage'
 import { HistoryPage } from '@/features/reviews/pages/HistoryPage'
 import { ReviewDetailPage } from '@/features/reviews/pages/ReviewDetailPage'
+import { GenerationResultPage } from '@/features/reviews/pages/GenerationResultPage'
 import { ProfilePage } from '@/features/profile/pages/ProfilePage'
 
 export const router = createBrowserRouter([
@@ -40,6 +41,7 @@ export const router = createBrowserRouter([
         children: [
           { path: '/', element: <HomePage /> },
           { path: '/history', element: <HistoryPage /> },
+          { path: '/generation/:id', element: <GenerationResultPage /> },
           { path: '/reviews/:id', element: <ReviewDetailPage /> },
           { path: '/profile', element: <ProfilePage /> },
         ],

@@ -1,6 +1,10 @@
 import { AUDIO_CONFIG } from './audioConfig'
 import { getFFmpeg, terminateFFmpeg } from './ffmpegLoader'
 import { getAudioDuration } from './getAudioDuration'
+import { AudioTooLongError } from './errors'
+
+// Sin WORKERFS, el archivo se copia completo a la memoria de ffmpeg: solo se permite con archivos chicos
+const MAX_IN_MEMORY_BYTES = 300 * 1024 * 1024
 
 /**
  * Comprime un archivo de audio o video a audio mono optimizado para voz (16 kHz, Opus a 32k).
@@ -26,7 +30,7 @@ export async function compressAudio(file, { onProgress, signal } = {}) {
   // 1. Validar límite máximo de tamaño
   if (file.size > AUDIO_CONFIG.MAX_FILE_SIZE_BYTES) {
     throw new Error(
-      `El archivo supera el tamaño máximo permitido de 500 MB (${(file.size / (1024 * 1024)).toFixed(1)} MB).`
+      `El archivo supera el tamaño máximo permitido de ${AUDIO_CONFIG.MAX_FILE_SIZE_LABEL} (${(file.size / (1024 * 1024)).toFixed(1)} MB).`
     )
   }
 
@@ -40,7 +44,11 @@ export async function compressAudio(file, { onProgress, signal } = {}) {
   const inputExt = extMatch ? extMatch[1].toLowerCase() : 'mp4'
   const baseName = originalName.replace(/\.[^/.]+$/, '')
 
-  const inputFileName = `input_${Date.now()}.${inputExt}`
+  const stamp = Date.now()
+  const mountDir = `/input_${stamp}`
+  // Ruta de entrada dentro del FS de ffmpeg (se define al montar o escribir el archivo)
+  let inputFileName = `input_${stamp}.${inputExt}`
+  let isMounted = false
   let outputFileName = `output_${Date.now()}.webm`
   let outputMime = AUDIO_CONFIG.OUTPUT_MIME
 
@@ -69,12 +77,22 @@ export async function compressAudio(file, { onProgress, signal } = {}) {
     signal.addEventListener('abort', abortHandler, { once: true })
   }
 
-  const { fetchFile } = await import('@ffmpeg/util')
-
   try {
-    // 4. Escribir archivo al FS virtual de FFmpeg
-    const fileData = await fetchFile(file)
-    await ffmpeg.writeFile(inputFileName, fileData)
+    // 4. Dar acceso al archivo a ffmpeg.
+    // WORKERFS lo lee por partes directamente del File: un video de 1.5 GB no se copia a memoria.
+    try {
+      const { FFFSType } = await import('@ffmpeg/ffmpeg')
+      await ffmpeg.createDir(mountDir)
+      const asFile = file instanceof File ? file : new File([file], `input.${inputExt}`, { type: file.type })
+      await ffmpeg.mount(FFFSType.WORKERFS, { files: [asFile] }, mountDir)
+      isMounted = true
+      inputFileName = `${mountDir}/${asFile.name}`
+    } catch (mountError) {
+      // Respaldo: copiar el archivo completo (solo si es chico, para no agotar la memoria)
+      if (file.size > MAX_IN_MEMORY_BYTES) throw mountError
+      const { fetchFile } = await import('@ffmpeg/util')
+      await ffmpeg.writeFile(inputFileName, await fetchFile(file))
+    }
 
     if (signal?.aborted) {
       throw new DOMException('Compresión cancelada', 'AbortError')
@@ -153,9 +171,7 @@ export async function compressAudio(file, { onProgress, signal } = {}) {
     // 8. Validar límite de duración (máx 60 min)
     const durationSec = await getAudioDuration(compressedFile)
     if (durationSec > AUDIO_CONFIG.MAX_DURATION_SECONDS) {
-      throw new Error(
-        `La duración del audio (${Math.round(durationSec / 60)} min) excede el límite máximo permitido de 60 minutos.`
-      )
+      throw new AudioTooLongError(durationSec, AUDIO_CONFIG.MAX_DURATION_SECONDS)
     }
 
     const originalSize = file.size
@@ -178,7 +194,12 @@ export async function compressAudio(file, { onProgress, signal } = {}) {
       signal.removeEventListener('abort', abortHandler)
     }
     try {
-      await ffmpeg.deleteFile(inputFileName).catch(() => {})
+      if (isMounted) {
+        await ffmpeg.unmount(mountDir).catch(() => {})
+        await ffmpeg.deleteDir(mountDir).catch(() => {})
+      } else {
+        await ffmpeg.deleteFile(inputFileName).catch(() => {})
+      }
       await ffmpeg.deleteFile(outputFileName).catch(() => {})
     } catch {
       // Ignorar errores de limpieza

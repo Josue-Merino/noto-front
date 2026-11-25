@@ -12,8 +12,11 @@ import {
   Layers,
   HelpCircle,
   Check,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/cn'
+import { isActiveStatus, reviewPath } from '../mappers/review.mapper'
 
 /**
  * Tarjeta individual del historial de repasos con soporte de modo visualización
@@ -156,7 +159,7 @@ export function ReviewCard({ review, onRename }) {
               </button>
 
               <Link
-                to={`/reviews/${review.id}`}
+                to={reviewPath(review)}
                 className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-xl bg-accent hover:bg-accent-hover text-text-on-accent text-xs font-semibold shadow-sm transition-colors"
               >
                 <span>Entrar</span>
@@ -181,9 +184,7 @@ export function ReviewCard({ review, onRename }) {
               <span>{review.badgeText || (isRecording ? 'Grabación de audio' : 'Archivo')}</span>
             </div>
 
-            <span className="text-[10px] text-text-muted">
-              {review.dateText}
-            </span>
+            <StatusBadge status={review.status} />
           </div>
 
           {/* Origen y Título */}
@@ -196,7 +197,7 @@ export function ReviewCard({ review, onRename }) {
               title={review.title}
               className="text-xs sm:text-sm font-bold text-text-h hover:text-accent transition-colors truncate"
             >
-              <Link to={`/reviews/${review.id}`}>{review.title}</Link>
+              <Link to={reviewPath(review)}>{review.title}</Link>
             </h3>
 
             {/* Descripción breve (snippet) */}
@@ -237,7 +238,7 @@ export function ReviewCard({ review, onRename }) {
             </button>
 
             <Link
-              to={`/reviews/${review.id}`}
+              to={reviewPath(review)}
               className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-xl bg-accent hover:bg-accent-hover active:bg-accent-active text-text-on-accent text-xs font-semibold shadow-sm transition-all"
             >
               <span>{review.buttonText || 'Ver repaso'}</span>
@@ -248,4 +249,28 @@ export function ReviewCard({ review, onRename }) {
       )}
     </div>
   )
+}
+
+/**
+ * Estado del trabajo en el backend (solo se muestra si no terminó bien).
+ * @param {{ status?: string }} props
+ */
+function StatusBadge({ status }) {
+  if (isActiveStatus(status)) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-accent-muted text-accent border border-accent-border/40">
+        <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />
+        En proceso
+      </span>
+    )
+  }
+  if (status === 'failed' || status === 'cancelled') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-error-bg text-error border border-error/30">
+        <AlertCircle className="w-3 h-3" aria-hidden="true" />
+        {status === 'failed' ? 'Falló' : 'Cancelado'}
+      </span>
+    )
+  }
+  return null
 }

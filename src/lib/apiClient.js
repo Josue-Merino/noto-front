@@ -155,3 +155,132 @@ apiClient.delete = (endpoint, options = {}) => apiClient(endpoint, { ...options,
 /** POST multipart/form-data (subida de archivos). Reutiliza el Bearer, el refresh ante 401 y el desanidado de `data`. */
 apiClient.postForm = (endpoint, formData, options = {}) =>
   apiClient(endpoint, { ...options, method: 'POST', body: formData })
+
+/**
+ * Pide un access token nuevo con el refresh token guardado y actualiza la sesión.
+ * @returns {Promise<string>} El access token nuevo.
+ */
+async function refreshAccessToken() {
+  const currentSession = useAuthStore.getState().session
+  const refreshToken = currentSession?.refreshToken
+  if (!refreshToken) throw new Error('Sin refresh token')
+
+  const refreshRes = await fetch(`${BASE_URL}/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken }),
+  })
+  const refreshJson = await refreshRes.json().catch(() => ({}))
+  if (!refreshRes.ok || !refreshJson.success || !refreshJson.data) throw new Error('Refresh failed')
+
+  const newSession = {
+    ...currentSession,
+    accessToken: refreshJson.data.accessToken,
+    refreshToken: refreshJson.data.refreshToken || refreshToken,
+    expiresAt: refreshJson.data.expiresAt,
+  }
+  saveSession(newSession)
+  return newSession.accessToken
+}
+
+/**
+ * @param {object} newSession
+ */
+function saveSession(newSession) {
+  useAuthStore.getState().setSession({ user: useAuthStore.getState().user, session: newSession })
+}
+
+/**
+ * Envía un multipart con XMLHttpRequest para poder informar el **progreso de subida**
+ * (fetch no lo expone). Mantiene el Bearer, el refresh ante 401 y el formato de errores.
+ * @param {string} endpoint
+ * @param {FormData} formData
+ * @param {object} [options]
+ * @param {(percent: number) => void} [options.onProgress] - 0 a 100.
+ * @param {AbortSignal} [options.signal]
+ * @returns {Promise<any>} `data` de la respuesta.
+ */
+apiClient.upload = function upload(endpoint, formData, { onProgress, signal } = {}, isRetry = false) {
+  const url = endpoint.startsWith('http') ? endpoint : `${BASE_URL}${endpoint}`
+  const token = useAuthStore.getState().session?.accessToken
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', url)
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && onProgress) onProgress(Math.round((event.loaded / event.total) * 100))
+    }
+
+    const onAbort = () => xhr.abort()
+    signal?.addEventListener('abort', onAbort, { once: true })
+
+    xhr.onabort = () => reject(new DOMException('Subida cancelada', 'AbortError'))
+    xhr.onerror = () =>
+      reject(new ApiError('No se pudo conectar con el servidor. Revisa tu conexión.', 'NETWORK_ERROR', null, 0))
+
+    xhr.onload = async () => {
+      signal?.removeEventListener('abort', onAbort)
+      let data
+      try {
+        data = JSON.parse(xhr.responseText)
+      } catch {
+        data = null
+      }
+
+      if (xhr.status === 401 && !isRetry) {
+        try {
+          await refreshAccessToken()
+          resolve(await apiClient.upload(endpoint, formData, { onProgress, signal }, true))
+        } catch {
+          useAuthStore.getState().clearSession()
+          window.location.href = '/login'
+          reject(new ApiError('Tu sesión ha expirado. Por favor ingresa de nuevo.', 'UNAUTHORIZED', null, 401))
+        }
+        return
+      }
+
+      if (xhr.status < 200 || xhr.status >= 300) {
+        const errorPayload = data?.error || {}
+        reject(
+          new ApiError(
+            errorPayload.message || 'Ocurrió un error al subir el archivo.',
+            errorPayload.code || 'REQUEST_FAILED',
+            errorPayload.details || null,
+            xhr.status
+          )
+        )
+        return
+      }
+
+      resolve(data?.data !== undefined ? data.data : data)
+    }
+
+    xhr.send(formData)
+  })
+}
+
+/**
+ * GET de un archivo binario autenticado (p. ej. el audio original para el reproductor).
+ * @param {string} endpoint
+ * @returns {Promise<Blob>}
+ */
+apiClient.getBlob = async function getBlob(endpoint, isRetry = false) {
+  const token = useAuthStore.getState().session?.accessToken
+  let response
+  try {
+    response = await fetch(`${BASE_URL}${endpoint}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+  } catch {
+    throw new ApiError('No se pudo conectar con el servidor. Revisa tu conexión.', 'NETWORK_ERROR', null, 0)
+  }
+  if (response.status === 401 && !isRetry) {
+    await refreshAccessToken()
+    return getBlob(endpoint, true)
+  }
+  if (!response.ok) {
+    const data = await response.json().catch(() => null)
+    throw new ApiError(data?.error?.message || 'No se pudo descargar el archivo.', data?.error?.code || 'REQUEST_FAILED', null, response.status)
+  }
+  return response.blob()
+}

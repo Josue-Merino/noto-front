@@ -1,3 +1,4 @@
+import { AudioTooLongError } from '@/lib/audio/errors'
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { AUDIO_CONFIG } from '@/lib/audio/audioConfig'
 import { isFFmpegLoaded, terminateFFmpeg } from '@/lib/audio/ffmpegLoader'
@@ -100,6 +101,14 @@ export function useAudioCompression() {
         if (err.name === 'AbortError' || abortController.signal.aborted) {
           setStatus('cancelled')
           return null
+        }
+
+        // Audio demasiado largo: no es una falla del motor (no se ofrece "subir original"),
+        // se propaga para que la UI muestre la tarjeta de límite de duración
+        if (err instanceof AudioTooLongError) {
+          setStatus('idle')
+          abortControllerRef.current = null
+          throw err
         }
 
         // Degradación elegante: guardamos el error para permitir al usuario reintentar o usar original

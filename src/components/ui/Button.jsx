@@ -3,7 +3,7 @@ import { ArrowRight, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/cn'
 
 /**
- * @typedef {'primary' | 'ghost'} ButtonVariant
+ * @typedef {'primary' | 'ghost' | 'outline' | 'soft'} ButtonVariant
  * @typedef {'sm' | 'md' | 'lg'} ButtonSize
  */
 
@@ -37,6 +37,10 @@ export const Button = forwardRef(function Button(
       'bg-accent text-text-on-accent hover:bg-accent-hover active:bg-accent-active shadow-sm',
     ghost:
       'bg-transparent text-text hover:text-text-h hover:bg-surface-hover active:bg-surface-active',
+    outline:
+      'bg-transparent border border-border text-text-h hover:bg-surface-hover hover:border-border-light active:bg-surface-active',
+    soft:
+      'bg-accent-muted/40 border border-accent-border text-accent hover:bg-accent-muted active:bg-accent-muted',
   }
 
   const sizes = {

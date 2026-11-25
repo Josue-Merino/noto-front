@@ -1,6 +1,7 @@
 import { SquarePlay, AudioLines, CodeXml, FileText } from 'lucide-react'
 import { useReviewsStore } from '@/features/home/store/reviews.store'
 import { SidebarNavItem } from './SidebarNavItem'
+import { reviewPath } from '@/features/reviews/mappers/review.mapper'
 
 /**
  * Sección de repasos recientes para el sidebar.
@@ -47,7 +48,7 @@ export function SidebarRecents({ collapsed, onItemClick }) {
           reviews.map((rev) => (
             <SidebarNavItem
               key={rev.id}
-              to={`/reviews/${rev.id}`}
+              to={reviewPath(rev)}
               title={rev.title}
               icon={getIcon(rev.type)}
               collapsed={collapsed}

@@ -5,7 +5,8 @@ import {
   MAX_DURATION_SECONDS,
 } from '../schemas/generator.schemas'
 import { useAudioCompression } from './useAudioCompression'
-import { shouldCompressFile, formatBytes } from '@/lib/audio/audioConfig'
+import { shouldCompressFile, formatBytes, AUDIO_CONFIG } from '@/lib/audio/audioConfig'
+import { AudioTooLongError } from '@/lib/audio/errors'
 import { getAudioDuration } from '@/lib/audio/getAudioDuration'
 
 /**
@@ -22,13 +23,38 @@ export function useFileUpload({ onFileSelected }) {
   const [isDragging, setIsDragging] = useState(false)
   const [fileDuration, setFileDuration] = useState('58 min')
   const [compressionMeta, setCompressionMeta] = useState(null)
+  // Archivo rechazado por superar la duración máxima (pantalla "Audio de más de 2 horas")
+  const [durationLimit, setDurationLimit] = useState(null)
 
   const compression = useAudioCompression()
   const activeProcessingFileRef = useRef(null)
 
+  /**
+   * Rechaza el archivo por duración y deja los datos para la tarjeta de límite.
+   * @param {File} tooLongFile
+   * @param {number} durationSec
+   */
+  const rejectTooLong = useCallback(
+    (tooLongFile, durationSec) => {
+      setDurationLimit({
+        name: tooLongFile.name,
+        extension: (tooLongFile.name.split('.').pop() || '').toUpperCase(),
+        sizeLabel: formatBytes(tooLongFile.size),
+        durationSec,
+      })
+      setFile(null)
+      setRawFile(null)
+      setCompressionMeta(null)
+      compression.reset()
+      if (onFileSelected) onFileSelected(null)
+    },
+    [compression, onFileSelected]
+  )
+
   const processFile = useCallback(
     async (selectedFile) => {
       setFileError(null)
+      setDurationLimit(null)
 
       if (!selectedFile) {
         setFile(null)
@@ -45,21 +71,39 @@ export function useFileUpload({ onFileSelected }) {
         return
       }
 
-      // 2. Validar tamaño máximo estricto (500 MB)
+      // 2. Validar tamaño máximo estricto (1.5 GB)
       if (selectedFile.size > MAX_FILE_SIZE_BYTES) {
-        setFileError('El archivo excede el tamaño máximo permitido de 500 MB.')
+        setFileError(`El archivo excede el tamaño máximo permitido de ${AUDIO_CONFIG.MAX_FILE_SIZE_LABEL}.`)
         return
       }
 
       setRawFile(selectedFile)
       activeProcessingFileRef.current = selectedFile
 
+      // 3. Validar la duración ANTES de comprimir (leer los metadatos es instantáneo, comprimir
+      // una clase de 1.5 GB no). Si el navegador no puede leerlos (0), se valida al comprimir.
+      const rawDurationSec = await getAudioDuration(selectedFile)
+      if (activeProcessingFileRef.current !== selectedFile) return
+      if (rawDurationSec > MAX_DURATION_SECONDS) {
+        rejectTooLong(selectedFile, rawDurationSec)
+        return
+      }
+
       // 3. Evaluar si requiere compresión con ffmpeg.wasm
       if (shouldCompressFile(selectedFile)) {
         // Notificamos null temporalmente al formulario para deshabilitar envío mientras comprime
         if (onFileSelected) onFileSelected(null)
 
-        const compressed = await compression.compress(selectedFile)
+        let compressed
+        try {
+          compressed = await compression.compress(selectedFile)
+        } catch (err) {
+          if (err instanceof AudioTooLongError && activeProcessingFileRef.current === selectedFile) {
+            rejectTooLong(selectedFile, err.durationSec)
+            return
+          }
+          throw err
+        }
 
         // Si el usuario seleccionó otro archivo mientras este comprimía, ignoramos este resultado
         if (activeProcessingFileRef.current !== selectedFile) {
@@ -89,15 +133,7 @@ export function useFileUpload({ onFileSelected }) {
       } else {
         // 4. Si el archivo ya es ligero (ej. audio <= 15 MB), omitir compresión
         compression.reset()
-        const durationSec = await getAudioDuration(selectedFile)
-
-        if (durationSec > MAX_DURATION_SECONDS) {
-          setFileError('La duración máxima permitida es de 1 hora (60 minutos).')
-          setFile(null)
-          setRawFile(null)
-          if (onFileSelected) onFileSelected(null)
-          return
-        }
+        const durationSec = rawDurationSec
 
         const durationMins = durationSec > 0 ? Math.max(1, Math.round(durationSec / 60)) : 45
         setFileDuration(`${durationMins} min`)
@@ -115,7 +151,7 @@ export function useFileUpload({ onFileSelected }) {
         }
       }
     },
-    [compression, onFileSelected]
+    [compression, onFileSelected, rejectTooLong]
   )
 
   // Acción para degradación elegante: usar archivo original si la compresión falló
@@ -124,7 +160,7 @@ export function useFileUpload({ onFileSelected }) {
 
     const durationSec = await getAudioDuration(rawFile)
     if (durationSec > MAX_DURATION_SECONDS) {
-      setFileError('La duración del archivo original supera el límite de 60 minutos.')
+      rejectTooLong(rawFile, durationSec)
       return
     }
 
@@ -145,7 +181,7 @@ export function useFileUpload({ onFileSelected }) {
     if (onFileSelected) {
       onFileSelected(rawFile, meta)
     }
-  }, [rawFile, onFileSelected])
+  }, [rawFile, onFileSelected, rejectTooLong])
 
   const retryCompression = useCallback(() => {
     if (rawFile) {
@@ -204,6 +240,7 @@ export function useFileUpload({ onFileSelected }) {
     setRawFile(null)
     setFileError(null)
     setCompressionMeta(null)
+    setDurationLimit(null)
     if (onFileSelected) onFileSelected(null)
   }, [compression, onFileSelected])
 
@@ -226,6 +263,7 @@ export function useFileUpload({ onFileSelected }) {
     fileExtension,
     formattedSize,
     compressionMeta,
+    durationLimit,
     compression: {
       status: compression.status,
       progress: compression.progress,

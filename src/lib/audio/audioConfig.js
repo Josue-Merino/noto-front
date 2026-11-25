@@ -17,10 +17,11 @@ export const AUDIO_CONFIG = {
   // Umbrales de tamaño
   SKIP_COMPRESSION_SIZE_BYTES: 15 * 1024 * 1024, // 15 MB
   WARN_LARGE_FILE_SIZE_BYTES: 300 * 1024 * 1024,  // 300 MB
-  MAX_FILE_SIZE_BYTES: 500 * 1024 * 1024,        // 500 MB
+  MAX_FILE_SIZE_BYTES: 1536 * 1024 * 1024,       // 1.5 GB
+  MAX_FILE_SIZE_LABEL: '1.5 GB',
 
   // Límite de duración
-  MAX_DURATION_SECONDS: 3600, // 60 minutos
+  MAX_DURATION_SECONDS: 7200, // 2 horas
 }
 
 /**

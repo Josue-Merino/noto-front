@@ -228,7 +228,7 @@ export function UploadDropzone({
 
           <div className="mt-4 pt-3 border-t border-border/40 w-full text-center">
             <span className="text-[10px] sm:text-[11px] text-text-muted">
-              Archivos soportados: MP3, WAV, MP4, MOV (Hasta 500MB)
+              Archivos soportados: MP3, WAV, MP4, MOV (Hasta 1.5 GB)
             </span>
           </div>
         </div>

@@ -1,5 +1,5 @@
 /**
- * Respuesta simulada de POST /generation/create (misma forma que el backend) para trabajar
+ * Trabajo de generación simulado (misma forma que el backend, ya completado) para trabajar
  * sin backend (VITE_API_URL vacía). Solo trae los materiales que corresponden al outputType.
  */
 
@@ -54,17 +54,32 @@ const SAMPLE_QUIZ = {
  * @param {File | Blob} params.file
  * @param {'flashcards' | 'quiz' | 'full'} params.outputType
  * @param {object} [params.metadata]
- * @returns {object} DTO con la forma de `data` del backend.
+ * @returns {object} Trabajo con la forma de `data` del backend.
  */
-export function buildMockStudyMaterial({ file, outputType, metadata }) {
+export function buildMockJob({ file, outputType, metadata }) {
   const originalName = metadata?.originalName || file?.name || 'Clase grabada'
   const cleanTitle = originalName.replace(/\.[^/.]+$/, '')
 
+  const now = new Date().toISOString()
+  const content = {
+    notes: outputType === 'full' ? SAMPLE_NOTES : null,
+    flashcards: outputType === 'full' || outputType === 'flashcards' ? SAMPLE_FLASHCARDS : null,
+    quiz: outputType === 'full' || outputType === 'quiz' ? SAMPLE_QUIZ : null,
+  }
+
   return {
     id: `rev-${Date.now()}`,
+    status: 'completed',
     title: `${cleanTitle}: Material generado`,
     outputType,
-    createdAt: new Date().toISOString(),
+    materials: Object.keys(content).filter((key) => content[key]),
+    pendingMaterials: [],
+    createdAt: now,
+    updatedAt: now,
+    startedAt: now,
+    finishedAt: now,
+    audio: { available: false, mimeType: null, sizeBytes: null, expiresAt: null },
+    error: null,
     source: {
       originType: metadata?.originType ?? 'file',
       originalName,
@@ -73,10 +88,6 @@ export function buildMockStudyMaterial({ file, outputType, metadata }) {
       originalSizeBytes: metadata?.originalSize ?? null,
       durationSec: metadata?.durationSec ?? null,
     },
-    content: {
-      notes: outputType === 'full' ? SAMPLE_NOTES : null,
-      flashcards: outputType === 'full' || outputType === 'flashcards' ? SAMPLE_FLASHCARDS : null,
-      quiz: outputType === 'full' || outputType === 'quiz' ? SAMPLE_QUIZ : null,
-    },
+    content,
   }
 }
