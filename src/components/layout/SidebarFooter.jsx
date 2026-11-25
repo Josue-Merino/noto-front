@@ -3,11 +3,12 @@ import { RotateCcw, LogOut } from 'lucide-react'
 import { useAuthStore } from '@/features/auth/store/auth.store'
 import { SidebarNavItem } from './SidebarNavItem'
 import { UserMenuItem } from './UserMenuItem'
+import { ThemeToggle } from './ThemeToggle'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { cn } from '@/lib/cn'
 
 /**
- * Pie inferior del sidebar con Historial, Usuario y Cerrar sesión.
+ * Pie inferior del sidebar con Historial, Usuario, Modo claro y Cerrar sesión.
  * @param {object} props
  * @param {boolean} props.collapsed - Si la barra lateral está colapsada.
  * @param {() => void} [props.onItemClick] - Callback para cerrar drawer en móvil.
@@ -36,6 +37,9 @@ export function SidebarFooter({ collapsed, onItemClick }) {
 
         {/* Tarjeta de usuario avatar */}
         <UserMenuItem collapsed={true} onItemClick={onItemClick} />
+
+        {/* Modo claro / oscuro */}
+        <ThemeToggle collapsed />
 
         {/* Botón de cerrar sesión */}
         <Tooltip content="Cerrar sesión" position="right">
@@ -67,6 +71,9 @@ export function SidebarFooter({ collapsed, onItemClick }) {
       <div className={cn('w-full', collapsed && 'flex justify-center')}>
         <UserMenuItem collapsed={false} onItemClick={onItemClick} />
       </div>
+
+      {/* Modo claro / oscuro */}
+      <ThemeToggle collapsed={false} />
 
       {/* Botón de cerrar sesión */}
       <button

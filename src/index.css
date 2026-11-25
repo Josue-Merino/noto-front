@@ -56,6 +56,59 @@
 
 
 
+/*
+ * Modo claro (pantallas "Modo claro" del Figma). Se activa con <html data-theme="light">
+ * (ver src/store/theme.store.js). Solo cambian las variables: los componentes usan los
+ * mismos tokens semánticos (bg-surface, text-text-h, border-border…).
+ */
+:root[data-theme='light'] {
+  --color-bg: #f4f4f4;
+  --color-bg-darker: #f8f8f9;
+
+  --color-surface: #f0f0f2;
+  --color-surface-hover: #e7e7ea;
+  --color-surface-active: #e1e1e3;
+
+  --color-border: #e4e4e7;
+  --color-border-light: #d4d4d8;
+
+  --color-text-h: #18181b;
+  --color-text: #52525b;
+  --color-text-muted: #71717a;
+  --color-text-on-accent: #18181b;
+
+  --color-accent: #f2b84b;
+  --color-accent-hover: #f5c463;
+  --color-accent-active: #e0a335;
+  --color-accent-muted: rgb(242 184 75 / 16%);
+  --color-accent-border: rgb(201 138 30 / 40%);
+
+  --color-success: #86d9a8;
+  --color-success-bg: rgb(22 163 74 / 10%);
+
+  --color-warning: #a16207;
+  --color-warning-bg: rgb(242 184 75 / 18%);
+
+  --color-error: #dc2626;
+  --color-error-bg: rgb(220 38 38 / 8%);
+
+  --color-secondary: #2563eb;
+}
+
+/*
+ * El ámbar y el verde de relleno (#f2b84b, #86d9a8) no se leen como texto sobre fondo claro:
+ * en modo claro, el texto con esos colores usa sus versiones oscuras (como en el Figma).
+ */
+:root[data-theme='light'] .text-accent,
+:root[data-theme='light'] .hover\:text-accent:hover,
+:root[data-theme='light'] .group:hover .group-hover\:text-accent {
+  color: #a16207;
+}
+
+:root[data-theme='light'] .text-success {
+  color: #15803d;
+}
+
 body {
   background-color: var(--color-bg);
   color: var(--color-text);
