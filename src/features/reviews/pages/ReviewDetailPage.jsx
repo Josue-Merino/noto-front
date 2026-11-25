@@ -7,6 +7,7 @@ import { downloadStudyMaterialMarkdown } from '@/lib/markdown/studyMaterialToMar
 import { getOutputTypeLabel } from '@/features/home/constants/outputTypes'
 import { GenerationProgressCard } from '@/features/home/components/GenerationProgressCard'
 import { useGenerationJob } from '../hooks/useGenerationJob'
+import { useReviewsStore } from '@/features/home/store/reviews.store'
 import { isActiveStatus } from '../mappers/review.mapper'
 import { materialCounts, missingMaterials, sectionsLabel } from '../lib/materialSummary'
 import { Breadcrumb } from '../components/Breadcrumb'
@@ -65,6 +66,23 @@ function NoteDetail({ job, state }) {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const { content } = job
   const counts = materialCounts(content)
+  const updateContent = useReviewsStore((s) => s.updateContent)
+
+  // El repaso se guarda en el backend; aquí se refleja en el store para no recargar el apunte
+  const handleCardReviewed = (cardId, review) =>
+    updateContent(job.id, (c) => ({
+      ...c,
+      flashcards: { ...c.flashcards, cards: c.flashcards.cards.map((card) => (card.id === cardId ? { ...card, review } : card)) },
+    }))
+  const handleAttemptSaved = (attempt) =>
+    updateContent(job.id, (c) => ({
+      ...c,
+      quiz: {
+        ...c.quiz,
+        attempts: [attempt, ...(c.quiz.attempts ?? [])].slice(0, 5),
+        bestScore: Math.max(c.quiz.bestScore ?? 0, attempt.score ?? 0),
+      },
+    }))
   const missing = missingMaterials(content)
   const isBusy = isActiveStatus(job.status)
   const addFailed = job.status === 'failed' || job.status === 'cancelled'
@@ -160,8 +178,8 @@ function NoteDetail({ job, state }) {
           </div>
 
           {activeKey === 'notes' && <NotesView notes={content.notes} />}
-          {activeKey === 'flashcards' && <FlashcardsView flashcards={content.flashcards} />}
-          {activeKey === 'quiz' && <QuizView quiz={content.quiz} />}
+          {activeKey === 'flashcards' && <FlashcardsView flashcards={content.flashcards} onReviewed={handleCardReviewed} />}
+          {activeKey === 'quiz' && <QuizView quiz={content.quiz} onAttemptSaved={handleAttemptSaved} />}
         </section>
 
         {/* Panel lateral */}

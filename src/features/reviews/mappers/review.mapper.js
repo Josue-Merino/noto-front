@@ -60,15 +60,20 @@ export function formatDateText(iso, now = new Date()) {
 
 /**
  * Texto corto para la tarjeta: el resumen de las notas o el conteo de lo generado.
- * @param {{ notes?: object | null, flashcards?: object | null, quiz?: object | null }} content
+ * La lista del backend no trae el contenido (solo conteos), así que se usan `counts` si no hay contenido.
+ * @param {{ notes?: object | null, flashcards?: object | null, quiz?: object | null } | null} content
+ * @param {{ blocks?: number, flashcards?: number, questions?: number } | undefined} counts
  */
-function buildDescription(content) {
+function buildDescription(content, counts) {
   if (content?.notes?.summary) return content.notes.summary
 
+  const flashcards = content ? (content.flashcards?.cards.length ?? 0) : (counts?.flashcards ?? 0)
+  const questions = content ? (content.quiz?.questions.length ?? 0) : (counts?.questions ?? 0)
   const parts = []
-  if (content?.flashcards) parts.push(`${content.flashcards.cards.length} flashcards`)
-  if (content?.quiz) parts.push(`${content.quiz.questions.length} preguntas de opción múltiple`)
-  return parts.length ? `${parts.join(' y ')} generadas a partir de la clase.` : ''
+  if (!content && counts?.blocks) parts.push('Apunte')
+  if (flashcards) parts.push(`${flashcards} flashcards`)
+  if (questions) parts.push(`${questions} preguntas de opción múltiple`)
+  return parts.length ? `${parts.join(', ')} generados a partir de la clase.` : ''
 }
 
 /**
@@ -92,7 +97,7 @@ export function toReviewViewModel(dto) {
     fileType: isRecording ? 'audio' : extension || 'audio',
     badgeText: isRecording ? 'Grabación de audio' : extension ? `Archivo ${extension.toUpperCase()}` : 'Archivo',
     originLabel: isRecording ? 'Captura en vivo' : 'Archivo origen:',
-    description: buildDescription(dto.content),
+    description: buildDescription(dto.content, dto.counts),
     // Las tarjetas y el buscador trabajan con la etiqueta; el id queda para la lógica
     outputType: getOutputTypeLabel(dto.outputType),
     outputTypeId: dto.outputType,
@@ -104,6 +109,7 @@ export function toReviewViewModel(dto) {
     // Estado del trabajo en el backend
     status: dto.status ?? 'completed',
     materials: dto.materials ?? [],
+    counts: dto.counts ?? null,
     pendingMaterials: dto.pendingMaterials ?? [],
     error: dto.error ?? null,
     audio: dto.audio ?? { available: false },

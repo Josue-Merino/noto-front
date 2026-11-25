@@ -51,6 +51,16 @@ export const useReviewsStore = create((set) => ({
       reviews: state.reviews.map((r) => (r.id === id ? { ...r, title: newTitle, renamed: true } : r)),
     })),
 
+  /**
+   * Cambia el contenido de un repaso ya cargado (estado de repaso de una flashcard, intento nuevo…).
+   * @param {string} id
+   * @param {(content: object) => object} updater
+   */
+  updateContent: (id, updater) =>
+    set((state) => ({
+      reviews: state.reviews.map((r) => (r.id === id && r.content ? { ...r, content: updater(r.content) } : r)),
+    })),
+
   /** @param {string | null} id */
   setActiveJobId: (id) => set({ activeJobId: id }),
 
