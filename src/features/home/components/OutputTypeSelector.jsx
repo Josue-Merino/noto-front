@@ -1,22 +1,5 @@
 import { OutputTypeOption } from './OutputTypeOption'
-
-const OPTIONS = [
-  {
-    id: 'flashcards',
-    title: 'Solo Flashcards',
-    subtitle: 'Tarjetas de memorización',
-  },
-  {
-    id: 'quiz',
-    title: 'Solo Cuestionario',
-    subtitle: 'Test de autoevaluación',
-  },
-  {
-    id: 'full',
-    title: 'Notas completas',
-    subtitle: 'Flashcards + Test + Síntesis',
-  },
-]
+import { OUTPUT_TYPE_OPTIONS } from '../constants/outputTypes'
 
 /**
  * Selector de tipo de salida deseada con 3 opciones radio accesibles.
@@ -46,7 +29,7 @@ export function OutputTypeSelector({
         aria-label="Tipo de salida deseada"
         className="grid grid-cols-1 sm:grid-cols-3 gap-3"
       >
-        {OPTIONS.map((opt) => (
+        {OUTPUT_TYPE_OPTIONS.map((opt) => (
           <OutputTypeOption
             key={opt.id}
             id={opt.id}

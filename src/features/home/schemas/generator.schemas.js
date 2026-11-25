@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { OUTPUT_TYPE_IDS } from '../constants/outputTypes'
 
 export const ALLOWED_AUDIO_TYPES = [
   'audio/mpeg',
@@ -36,7 +37,7 @@ export function isValidFileType(file) {
 }
 
 export const generatorSchema = z.object({
-  outputType: z.enum(['flashcards', 'quiz', 'full'], {
+  outputType: z.enum(OUTPUT_TYPE_IDS, {
     required_error: 'Selecciona un tipo de salida',
   }).default('full'),
   file: z

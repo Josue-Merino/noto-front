@@ -30,7 +30,7 @@ export function GeneratorPanel() {
         // Exclusión mutua: si sube archivo, se cancela la grabación activa
         recorder.cancelRecording()
       }
-      setFile(f, meta)
+      setFile(f, meta ? { ...meta, originType: 'file' } : meta)
     },
   })
 
@@ -46,6 +46,7 @@ export function GeneratorPanel() {
         originalSize: f?.size || 0,
         compressedSize: f?.size || 0,
         savingsPercent: 0,
+        originType: 'recording',
       })
     },
   })
