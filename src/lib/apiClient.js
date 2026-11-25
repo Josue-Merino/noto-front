@@ -33,9 +33,11 @@ function addRefreshSubscriber(callback) {
 export async function apiClient(endpoint, options = {}, isRetry = false) {
   const url = endpoint.startsWith('http') ? endpoint : `${BASE_URL}${endpoint}`
   const token = useAuthStore.getState().session?.accessToken
+  // Con FormData el navegador arma el Content-Type multipart con su boundary: no hay que fijarlo
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData
 
   const headers = {
-    'Content-Type': 'application/json',
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
   }
@@ -150,3 +152,6 @@ apiClient.put = (endpoint, body, options = {}) =>
 apiClient.patch = (endpoint, body, options = {}) =>
   apiClient(endpoint, { ...options, method: 'PATCH', body: JSON.stringify(body) })
 apiClient.delete = (endpoint, options = {}) => apiClient(endpoint, { ...options, method: 'DELETE' })
+/** POST multipart/form-data (subida de archivos). Reutiliza el Bearer, el refresh ante 401 y el desanidado de `data`. */
+apiClient.postForm = (endpoint, formData, options = {}) =>
+  apiClient(endpoint, { ...options, method: 'POST', body: formData })
